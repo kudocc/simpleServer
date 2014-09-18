@@ -140,7 +140,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastUpgradeCheck = 0510;
-				ORGANIZATIONNAME = yuanrui;
+				ORGANIZATIONNAME = KudoCC;
 			};
 			buildConfigurationList = 27B64E98196D0D8A008512DF /* Build configuration list for PBXProject "server4Someday" */;
 			compatibilityVersion = "Xcode 3.2";

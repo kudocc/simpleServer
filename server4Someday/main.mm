@@ -2,8 +2,8 @@
 //  main.m
 //  server4Someday
 //
-//  Created by yuanrui on 14-7-9.
-//  Copyright (c) 2014年 yuanrui. All rights reserved.
+//  Created by KudoCC on 14-7-9.
+//  Copyright (c) 2014年 KudoCC. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>
