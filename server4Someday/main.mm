@@ -15,7 +15,7 @@
 #import "KDNetworkUtility.h"
 
 #define LISTENQ 5
-#define SERV_PORT 70001
+#define SERV_PORT 7001
 
 int main(int argc, const char * argv[])
 {
