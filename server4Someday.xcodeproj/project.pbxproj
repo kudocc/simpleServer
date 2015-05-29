@@ -14,6 +14,7 @@
 		27BCFBA019CA885E005203F8 /* CSerialization.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27BCFB9919CA885E005203F8 /* CSerialization.cpp */; };
 		27BCFBA119CA885E005203F8 /* KDPacket.mm in Sources */ = {isa = PBXBuildFile; fileRef = 27BCFB9C19CA885E005203F8 /* KDPacket.mm */; };
 		27BCFBA419CA887A005203F8 /* KDNetworkUtility.mm in Sources */ = {isa = PBXBuildFile; fileRef = 27BCFBA319CA887A005203F8 /* KDNetworkUtility.mm */; };
+		27F400CA1B17FC12009FC2F0 /* PacketMemoryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27F400C81B17FC12009FC2F0 /* PacketMemoryManager.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -45,6 +46,8 @@
 		27BCFB9E19CA885E005203F8 /* PacketCmd.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PacketCmd.h; sourceTree = "<group>"; };
 		27BCFBA219CA887A005203F8 /* KDNetworkUtility.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = KDNetworkUtility.h; sourceTree = "<group>"; };
 		27BCFBA319CA887A005203F8 /* KDNetworkUtility.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = KDNetworkUtility.mm; sourceTree = "<group>"; };
+		27F400C81B17FC12009FC2F0 /* PacketMemoryManager.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PacketMemoryManager.cpp; sourceTree = "<group>"; };
+		27F400C91B17FC12009FC2F0 /* PacketMemoryManager.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PacketMemoryManager.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +90,8 @@
 		27B64EA2196D0D8A008512DF /* server4Someday */ = {
 			isa = PBXGroup;
 			children = (
+				27F400C91B17FC12009FC2F0 /* PacketMemoryManager.h */,
+				27F400C81B17FC12009FC2F0 /* PacketMemoryManager.cpp */,
 				27BCFB9819CA885E005203F8 /* CDeserialization.h */,
 				27BCFB9719CA885E005203F8 /* CDeserialization.cpp */,
 				27BCFB9A19CA885E005203F8 /* CSerialization.h */,
@@ -180,6 +185,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				27F400CA1B17FC12009FC2F0 /* PacketMemoryManager.cpp in Sources */,
 				27BCFBA019CA885E005203F8 /* CSerialization.cpp in Sources */,
 				27B64EA4196D0D8A008512DF /* main.mm in Sources */,
 				27BCFBA419CA887A005203F8 /* KDNetworkUtility.mm in Sources */,
@@ -264,18 +270,23 @@
 		27B64EAC196D0D8A008512DF /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "server4Someday/server4Someday-Prefix.pch";
+				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				VALID_ARCHS = "i386 x86_64";
 			};
 			name = Debug;
 		};
 		27B64EAD196D0D8A008512DF /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = "$(ARCHS_STANDARD)";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "server4Someday/server4Someday-Prefix.pch";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				VALID_ARCHS = "i386 x86_64";
 			};
 			name = Release;
 		};

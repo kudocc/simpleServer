@@ -13,6 +13,7 @@
 
 #import "KDPacket.h"
 #import "KDNetworkUtility.h"
+#import "PacketMemoryManager.h"
 
 #define LISTENQ 5
 #define SERV_PORT 7001
@@ -32,7 +33,7 @@ int main(int argc, const char * argv[])
         servaddr.sin_port = htons (SERV_PORT);
         bind(listenfd, (const struct sockaddr *)&servaddr, sizeof(servaddr));
         
-        NSLog(@"begin listen on port:%d\n", SERV_PORT) ;
+        printf("begin listen on port:%d\n", SERV_PORT) ;
         int rLiten = listen(listenfd, LISTENQ);
         if (rLiten != 0) {
             printf("listen error:%d\n", errno) ;
@@ -50,18 +51,29 @@ int main(int argc, const char * argv[])
                 printf("accept from ip:%s, port:%d\n", ip, port) ;
             }
             
+            // set clientSocket to O_NONBLOCK
+            int val = fcntl(connfd, F_GETFL, 0) ;
+            fcntl(connfd, F_SETFL, val | O_NONBLOCK) ;
+            
+            CPacketMemoryManager readBuffer = CPacketMemoryManager() ;
+            CPacketMemoryManager writeBuffer = CPacketMemoryManager() ;
+            int fdInput = STDIN_FILENO ;
+            fd_set readSet ;
+            fd_set writeSet ;
+            FD_ZERO(&writeSet) ;
             while (1) {
-                int fdInput = STDIN_FILENO ;
-                
-                fd_set readSet ;
-                FD_SET(fdInput, &readSet) ;
-                FD_SET(connfd, &readSet) ;
-                
                 int fdMax = fdInput > connfd ? fdInput : connfd ;
                 struct timeval timeout ;
                 timeout.tv_sec = 3 ;
                 timeout.tv_usec = 0 ;
-                int iSelect = select(fdMax+1, &readSet, NULL, NULL, &timeout) ;
+                
+                FD_SET(fdInput, &readSet) ;
+                FD_SET(connfd, &readSet) ;
+                fd_set *pWriteFd = NULL ;
+                if (FD_ISSET(connfd, &writeSet)) {
+                    pWriteFd = &writeSet ;
+                }
+                int iSelect = select(fdMax+1, &readSet, pWriteFd, NULL, &timeout) ;
                 if (iSelect > 0) {
                     char readBuf[1024] ;
                     memset(readBuf, 0, sizeof(readBuf)) ;
@@ -91,21 +103,88 @@ int main(int argc, const char * argv[])
                         }
                     }
                     if (FD_ISSET(connfd, &readSet)) {
-                        // socket
-                        ssize_t readLen = read(connfd, readBuf, sizeof(readBuf)-1) ;
-                        if (readLen > 0) {
-                            printf("read from socket len %zd\n", readLen) ;
-                            ssize_t writeLen = write(connfd, readBuf, readLen) ;
+                        // socket input
+                        unsigned char bufferRead[2048] ;
+                        long r = 0 ;
+                        do {
+                            r = read(connfd, bufferRead, sizeof(bufferRead)) ;
+                            if (r > 0) {
+                                printf("read len %ld\n", r) ;
+                                readBuffer.addToBuffer(bufferRead, r) ;
+                                writeBuffer.addToBuffer(bufferRead, r) ;
+                            }
+                        } while (r > 0) ;
+                        while (1) {
+                            unsigned int len = readBuffer.getUseBufferLength() ;
+                            if (len > sizeof(BaseNetworkPacket)) {
+                                unsigned char *p = readBuffer.getBufferPointer() ;
+                                NSData *data = [NSData dataWithBytes:p length:sizeof(BaseNetworkPacket)] ;
+                                KDPacket *packet = [KDPacket deSerialization:data] ;
+                                unsigned int packetLen = packet.packet->header.length ;
+                                if (len < packetLen) {
+                                    break ;
+                                }
+                                data = [NSData dataWithBytes:p length:packetLen] ;
+                                packet = [KDPacket deSerialization:data] ;
+                                readBuffer.removeBuffer(packetLen) ;
+                                
+                                BaseNetworkPacket *basePacket = [packet packet] ;
+                                if (basePacket->header.cmd == Cmd_Text) {
+                                    TextPacket *textpacket = (TextPacket *)basePacket ;
+                                    textpacket->text[textpacket->textLen] = '\0' ;
+                                    printf("receive text message:%s\n", textpacket->text) ;
+                                }
+                            } else {
+                                break ;
+                            }
+                        }
+                        if (r < 0) {
+                            if (errno == EWOULDBLOCK) {
+                                // read would block but socket is set to nonblock
+                                continue ;
+                            }
+                            printf("read error %d\n", errno) ;
+                            break ;
+                        } else if (r == 0) {
+                            printf("connection closed by peer\n") ;
+                            break ;
+                        }
+                        // echo the message
+                        unsigned int writeBufferLen = 0 ;
+                        while ((writeBufferLen = writeBuffer.getUseBufferLength()) > 0) {
+                            ssize_t writeLen = write(connfd, writeBuffer.getBufferPointer(), writeBufferLen) ;
                             if (writeLen > 0) {
+                                writeBuffer.removeBuffer(writeLen) ;
                                 printf("success write %zu\n", writeLen) ;
                             } else {
                                 printf("write %zu, error %d\n", writeLen, errno) ;
                                 break ;
                             }
-                        } else if (readLen == 0) {
-                            break ;
-                        } else {
-                            printf("read error %d\n", errno) ;
+                        }
+                        if ((writeBufferLen = writeBuffer.getUseBufferLength()) > 0) {
+                            // write buffer is full, set write fd
+                            printf("write buffer is full, set write fd\n") ;
+                            FD_SET(connfd, &writeSet) ;
+                        }
+                    }
+                    if (FD_ISSET(connfd, &writeSet)) {
+                        printf("now available send buffer to write\n") ;
+                        // echo the message
+                        unsigned int writeBufferLen = 0 ;
+                        while ((writeBufferLen = writeBuffer.getUseBufferLength()) > 0) {
+                            ssize_t writeLen = write(connfd, writeBuffer.getBufferPointer(), writeBufferLen) ;
+                            if (writeLen > 0) {
+                                writeBuffer.removeBuffer(writeLen) ;
+                                printf("success write %zu\n", writeLen) ;
+                            } else {
+                                printf("write %zu, error %d\n", writeLen, errno) ;
+                                break ;
+                            }
+                        }
+                        if ((writeBufferLen = writeBuffer.getUseBufferLength()) > 0) {
+                            // write buffer is full, set write fd
+                            printf("write buffer is full, set write fd\n") ;
+                            FD_SET(connfd, &writeSet) ;
                         }
                     }
                 } else if (iSelect == 0) {
@@ -127,4 +206,3 @@ int main(int argc, const char * argv[])
     
     return 0;
 }
-
