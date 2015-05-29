@@ -53,9 +53,29 @@ int main(int argc, const char * argv[])
             // set clientSocket to O_NONBLOCK
             int val = fcntl(connfd, F_GETFL, 0) ;
             fcntl(connfd, F_SETFL, val | O_NONBLOCK) ;
+            /*
+            // set socket send and receive buffer lenght
+            int recvBufferLen = 2*1024 ;
+            setsockopt(connfd ,SOL_SOCKET, SO_RCVBUF, (const char*)&recvBufferLen, sizeof(int)) ;
+            int sendBufferLen = 2*1024 ;
+            setsockopt(connfd, SOL_SOCKET,SO_SNDBUF, (const char*)&sendBufferLen, sizeof(int)) ;
+             */
             
             CPacketMemoryManager readBuffer = CPacketMemoryManager() ;
             CPacketMemoryManager writeBuffer = CPacketMemoryManager() ;
+            // test code begin
+//            for (int i = 0; i < 1000; ++i) {
+//                TextPacket s_packet ;
+//                s_packet.header.transId = [KDNetworkUtility generatorTransId] ;
+//                s_packet.textLen = 10 ;
+//                s_packet.header.length = s_packet.packetLength() ;
+//                char readBuf[11] = "abcdefghij" ;
+//                memcpy(s_packet.text, readBuf, 10) ;
+//                KDPacket *packet = [KDPacket serialization:&s_packet] ;
+//                NSData *data = [packet data] ;
+//                writeBuffer.addToBuffer((const unsigned char *)data.bytes, (unsigned int)[data length]) ;
+//            }
+            // test code end
             int fdInput = STDIN_FILENO ;
             fd_set readSet ;
             fd_set writeSet ;
@@ -74,6 +94,32 @@ int main(int argc, const char * argv[])
                 }
                 int iSelect = select(fdMax+1, &readSet, pWriteFd, NULL, &timeout) ;
                 if (iSelect > 0) {
+                    if (FD_ISSET(connfd, &writeSet)) {
+                        printf("now available send buffer to write\n") ;
+                        // echo the message
+                        unsigned int writeBufferLen = 0 ;
+                        while ((writeBufferLen = writeBuffer.getUseBufferLength()) > 0) {
+                            ssize_t writeLen = write(connfd, writeBuffer.getBufferPointer(), writeBufferLen) ;
+                            if (writeLen > 0) {
+                                writeBuffer.removeBuffer(writeLen) ;
+                                printf("success write %zu\n", writeLen) ;
+                            } else if (writeLen == 0) {
+                                printf("write len is zero\n") ;
+                            } else {
+                                printf("write %zu, error %d\n", writeLen, errno) ;
+                                break ;
+                            }
+                        }
+                        if ((writeBufferLen = writeBuffer.getUseBufferLength()) > 0) {
+                            // write buffer is full, set write fd
+                            printf("write buffer is full, set write fd\n") ;
+                            FD_SET(connfd, &writeSet) ;
+                        } else {
+                            printf("send finish, clear write fd\n") ;
+                            FD_CLR(connfd, &writeSet) ;
+                        }
+                    }
+                    
                     char readBuf[1024] ;
                     memset(readBuf, 0, sizeof(readBuf)) ;
                     if (FD_ISSET(fdInput, &readSet)) {
@@ -140,10 +186,10 @@ int main(int argc, const char * argv[])
                         if (r < 0) {
                             if (errno == EWOULDBLOCK) {
                                 // read would block but socket is set to nonblock
-                                continue ;
+                            } else {
+                                printf("read error %d\n", errno) ;
+                                break ;
                             }
-                            printf("read error %d\n", errno) ;
-                            break ;
                         } else if (r == 0) {
                             printf("connection closed by peer\n") ;
                             break ;
@@ -155,6 +201,8 @@ int main(int argc, const char * argv[])
                             if (writeLen > 0) {
                                 writeBuffer.removeBuffer(writeLen) ;
                                 printf("success write %zu\n", writeLen) ;
+                            } else if (writeLen == 0) {
+                                printf("write len is zero\n") ;
                             } else {
                                 printf("write %zu, error %d\n", writeLen, errno) ;
                                 break ;
@@ -164,26 +212,9 @@ int main(int argc, const char * argv[])
                             // write buffer is full, set write fd
                             printf("write buffer is full, set write fd\n") ;
                             FD_SET(connfd, &writeSet) ;
-                        }
-                    }
-                    if (FD_ISSET(connfd, &writeSet)) {
-                        printf("now available send buffer to write\n") ;
-                        // echo the message
-                        unsigned int writeBufferLen = 0 ;
-                        while ((writeBufferLen = writeBuffer.getUseBufferLength()) > 0) {
-                            ssize_t writeLen = write(connfd, writeBuffer.getBufferPointer(), writeBufferLen) ;
-                            if (writeLen > 0) {
-                                writeBuffer.removeBuffer(writeLen) ;
-                                printf("success write %zu\n", writeLen) ;
-                            } else {
-                                printf("write %zu, error %d\n", writeLen, errno) ;
-                                break ;
-                            }
-                        }
-                        if ((writeBufferLen = writeBuffer.getUseBufferLength()) > 0) {
-                            // write buffer is full, set write fd
-                            printf("write buffer is full, set write fd\n") ;
-                            FD_SET(connfd, &writeSet) ;
+                        } else {
+                            printf("send finish, clear write fd\n") ;
+                            FD_CLR(connfd, &writeSet) ;
                         }
                     }
                 } else if (iSelect == 0) {
