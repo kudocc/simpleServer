@@ -51,6 +51,9 @@ void CPacketMemoryManager::addToBuffer(const unsigned char *data, unsigned int l
     } else {
         if (bufferUseLength > sizeof(buffer)) {
             unsigned char *p = (unsigned char *)malloc(bufferUseLength) ;
+            if (p == NULL) {
+                printf("malloc failed\n");
+            }
             memcpy(p, buffer, originalLen) ;
             memcpy(p+originalLen, data, len) ;
             pointer = p ;
